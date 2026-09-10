@@ -44,59 +44,7 @@ The rendering pipeline (`src/engine/renderers.ts`) executes a 9-stage drawing li
 
 ---
 
-## 🧮 Algorithms Used for QR Generation
 
-QR generation in QR Frame Studio is based on the **ISO/IEC 18004 Standard** for Quick Response Code symbology, incorporating several key mathematical and algorithmic components:
-
-### 1. Galois Field Arithmetic & Reed-Solomon Error Correction
-To maintain scannability despite heavy visual customization, stylized modules, and center logo occlusions, the generator relies on **Reed-Solomon Error Correction Code (ECC)** constructed over a Galois Field $GF(2^8)$:
-- **Field Polynomial**: $P(x) = x^8 + x^4 + x^3 + x^2 + 1$ (numeric value 285).
-- **Generator Polynomial**: Formed through iterative roots $G(x) = \prod_{i=0}^{t-1} (x - \alpha^i)$ where $t$ is the number of error correction codewords.
-- **Error Correction Levels**:
-  - **Level L (Low)**: Recovers up to ~7% corrupted or obscured codewords.
-  - **Level M (Medium)**: Recovers up to ~15% codewords (standard default).
-  - **Level Q (Quartile)**: Recovers up to ~25% codewords.
-  - **Level H (High)**: Recovers up to ~30% codewords.
-- **Logo Occlusion Strategy**: When a center logo is introduced, the engine locks or recommends **Level H (30% recovery)**. The center logo is placed within a mathematically bounded footprint (maximum 25% area coverage), allowing the Reed-Solomon decoder to correct the occluded modules as localized burst erasures without modifying the structural code words.
-
-### 2. Payload Mode Analysis & Compact Encoding
-Payload strings (URLs, Wi-Fi configuration strings, vCard 3.0 records, SMS, Email URIs, Crypto schemas) are analyzed dynamically to select the most efficient encoding mode:
-- **Numeric Mode**: 10 bits per 3 digits.
-- **Alphanumeric Mode**: 11 bits per 2 characters (subset of 45 characters).
-- **8-bit Byte Mode**: 8 bits per character (UTF-8 encoding).
-- **Kanji Mode**: 13 bits per character.
-
-### 3. Mask Pattern Evaluation & Penalty Scoring
-To avoid optical illusions or false alignment triggers that might deceive camera sensors, 8 standard evaluation masks ($M_0$ through $M_7$) are applied to the matrix:
-- The mask formula toggles module bits based on mathematical coordinates $(r, c)$:
-  - $M_0: (r + c) \pmod 2 = 0$
-  - $M_1: r \pmod 2 = 0$
-  - $M_2: c \pmod 3 = 0$
-  - $M_3: (r + c) \pmod 3 = 0$
-  - $M_4: (\lfloor r / 2 \rfloor + \lfloor c / 3 \rfloor) \pmod 2 = 0$
-  - $M_5: ((r \cdot c) \pmod 2) + ((r \cdot c) \pmod 3) = 0$
-  - $M_6: (((r \cdot c) \pmod 2) + ((r \cdot c) \pmod 3)) \pmod 2 = 0$
-  - $M_7: (((r + c) \pmod 2) + ((r \cdot c) \pmod 3)) \pmod 2 = 0$
-- **Penalty Calculation ($N_1$ to $N_4$)**:
-  - $N_1$: Penalty for consecutive lines of 5 or more identical modules.
-  - $N_2$: Penalty for 2×2 blocks of identical modules.
-  - $N_3$: Penalty for finder-like patterns in unexpected matrix locations.
-  - $N_4$: Penalty for imbalance between total dark and light modules.
-  The mask yielding the lowest aggregate penalty score is selected.
-
-### 4. Matrix Decomposition & Functional Pattern Isolation
-Before drawing custom styles, the engine partitions the matrix into distinct functional layers:
-- **Position Detection Patterns (Finder Eyes)**: Fixed at the Top-Left $(0,0)$, Top-Right $(0, \text{size}-7)$, and Bottom-Left $(\text{size}-7, 0)$ regions.
-- **Timing Patterns**: Alternating dark and light modules along row 6 and column 6.
-- **Alignment Patterns**: Concentric 5×5 and 3×3 markers placed across larger QR versions (Version 2+).
-- **Format Information & Version Information Areas**: Preserved alongside finder boundaries.
-- **Data & Error Correction Codeword Modules**: The remaining areas where custom module shapes and scale factors (40% to 100%) are applied.
-
-### 5. Even-Odd Compound Path Rule for Hollow Ring Geometry
-To create distinct outer eye frames without using fill operations that overwrite the inner pupil, the engine uses compound path construction with the **Even-Odd Winding Rule** (`ctx.fill('evenodd')`):
-- The outer boundary (e.g., $7 \times 7$ cell bounds) is traced.
-- The inner cutout boundary (e.g., $5 \times 5$ cell bounds) is traced immediately within the same subpath without issuing a `beginPath()`.
-- When filled with the `evenodd` rule, the area between the outer and inner paths is shaded while the center remains transparent, providing a 1-module gap around the 3×3 pupil across all geometric outer frame shapes.
 
 ---
 
